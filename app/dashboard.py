@@ -8,7 +8,7 @@ bp = Blueprint("dashboard", __name__)
 
 
 def require_subscription():
-    return current_user.has_active_subscription or current_app.config.get("DEV_BYPASS_SUBSCRIPTION", False)
+    return current_user.has_full_access
 
 
 @bp.route("/dashboard")
