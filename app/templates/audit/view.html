@@ -1,117 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Relatório de auditoria{% endblock %}
+{% block title %}Audit Intelligence — AutoSEO AI{% endblock %}
 {% block body %}
-<div class="max-w-4xl mx-auto py-10 px-4">
-  <a href="{{ url_for('audit.home', site_id=site.id) }}" class="text-sm text-slate-400 hover:text-white">← Histórico de auditorias</a>
-
-  {% if audit.status == 'running' %}
-  <div class="glass rounded-2xl p-10 text-center mt-6" id="running-box">
-    <div class="text-4xl mb-4 animate-pulse">🔎</div>
-    <h1 class="text-lg font-bold text-white mb-2">Auditoria em andamento...</h1>
-    <p class="text-slate-400 text-sm">Rastreando páginas, rodando checks técnicos e o agente de IA de SEO/GEO/AEO. Isso pode levar de 1 a 5 minutos.</p>
-  </div>
-  <script>
-    setInterval(async () => {
-      const res = await fetch("{{ url_for('audit.status', site_id=site.id, audit_id=audit.id) }}");
-      const data = await res.json();
-      if (data.status !== 'running') location.reload();
-    }, 5000);
-  </script>
-
-  {% elif audit.status == 'failed' %}
-  <div class="glass rounded-2xl p-8 mt-6 border border-rose-500/30">
-    <h1 class="text-lg font-bold text-rose-300 mb-2">Auditoria falhou</h1>
-    <p class="text-slate-400 text-sm">{{ audit.error_message }}</p>
-  </div>
-
-  {% else %}
-  <h1 class="text-2xl font-bold text-white mt-3 mb-1">Relatório — {{ audit.created_at.strftime('%d/%m/%Y %H:%M') }}</h1>
-  <p class="text-slate-400 text-sm mb-6">{{ audit.summary }}</p>
-
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-    <div class="glass rounded-2xl p-5 text-center">
-      <p class="text-xs text-slate-400 mb-1">Score geral</p>
-      <p class="text-3xl font-extrabold gradient-text">{{ audit.overall_score or '—' }}</p>
-    </div>
-    <div class="glass rounded-2xl p-5 text-center">
-      <p class="text-xs text-slate-400 mb-1">SEO técnico</p>
-      <p class="text-3xl font-bold text-white">{{ audit.seo_score or '—' }}</p>
-    </div>
-    <div class="glass rounded-2xl p-5 text-center">
-      <p class="text-xs text-slate-400 mb-1">GEO (IA)</p>
-      <p class="text-3xl font-bold text-white">{{ audit.geo_score or '—' }}</p>
-    </div>
-    <div class="glass rounded-2xl p-5 text-center">
-      <p class="text-xs text-slate-400 mb-1">AEO (resposta)</p>
-      <p class="text-3xl font-bold text-white">{{ audit.aeo_score or '—' }}</p>
-    </div>
-  </div>
-
-  <!-- Recomendações de conteúdo -->
-  {% if recommendations %}
-  <div class="glass rounded-2xl p-6 mb-8">
-    <h2 class="font-semibold text-white mb-1">✍️ Artigos recomendados</h2>
-    <p class="text-slate-400 text-sm mb-4">Sugestões do agente de IA para fechar lacunas de SEO/GEO/AEO.</p>
-    <div class="space-y-3">
-      {% for r in recommendations %}
-      <div class="bg-white/5 border border-white/10 rounded-xl p-4" id="rec-{{ r.id }}">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <p class="text-white font-medium text-sm">{{ r.title_suggestion }}
-              <span class="text-[10px] ml-2 px-2 py-0.5 rounded-full
-                {{ 'bg-rose-500/15 text-rose-300' if r.priority=='high' else 'bg-amber-500/15 text-amber-300' if r.priority=='medium' else 'bg-slate-500/15 text-slate-400' }}">
-                {{ r.priority }}
-              </span>
-            </p>
-            <p class="text-slate-400 text-xs mt-1">{{ r.rationale }}</p>
-            <p class="text-slate-500 text-[11px] mt-1">Termo alvo: {{ r.search_term }}</p>
-          </div>
-          <div class="flex gap-2 shrink-0">
-            <button onclick="scheduleRec('{{ r.id }}')" class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap">Agendar artigo</button>
-            <button onclick="dismissRec('{{ r.id }}')" class="text-slate-500 hover:text-slate-300 text-xs px-2">Ignorar</button>
-          </div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Findings -->
-  <div class="glass rounded-2xl p-6">
-    <h2 class="font-semibold text-white mb-4">🩺 Diagnóstico detalhado ({{ findings|length }} itens)</h2>
-    <div class="space-y-3">
-      {% for f in findings %}
-      <div class="border-l-2 pl-4 py-1 {{ 'border-rose-500' if f.severity=='critical' else 'border-amber-500' if f.severity=='warning' else 'border-slate-600' }}">
-        <div class="flex items-center gap-2">
-          <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded
-            {{ 'bg-rose-500/15 text-rose-300' if f.severity=='critical' else 'bg-amber-500/15 text-amber-300' if f.severity=='warning' else 'bg-slate-500/15 text-slate-400' }}">
-            {{ f.severity }}
-          </span>
-          <span class="text-[10px] font-bold uppercase text-brand-400">{{ f.category }}</span>
-          <p class="text-white text-sm font-medium">{{ f.title }}</p>
-        </div>
-        <p class="text-slate-400 text-xs mt-1">{{ f.description }}</p>
-        <p class="text-emerald-400/80 text-xs mt-1">✓ {{ f.how_to_fix }}</p>
-        <p class="text-slate-600 text-[10px] mt-1 truncate">{{ f.url }}</p>
-      </div>
-      {% else %}
-      <p class="text-slate-500 text-sm">Nenhum problema encontrado. 🎉</p>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
-</div>
-
-<script>
-async function scheduleRec(id) {
-  const res = await fetch(`/audit/recommendations/${id}/schedule`, {method: 'POST'});
-  const data = await res.json();
-  if (data.ok) { document.getElementById('rec-'+id).remove(); alert('Artigo agendado! Será gerado no próximo ciclo (até 5 min).'); }
-}
-async function dismissRec(id) {
-  await fetch(`/audit/recommendations/${id}/dismiss`, {method: 'POST'});
-  document.getElementById('rec-'+id).remove();
-}
-</script>
+<div class="max-w-6xl mx-auto py-8 px-4 lg:px-6">
+<a href="{{ url_for('audit.home', site_id=site.id) }}" class="text-xs text-slate-500 hover:text-white">← Histórico de auditorias</a>
+{% if audit.status == 'running' %}<div class="rounded-2xl border border-white/10 bg-white/[.025] p-12 text-center mt-5"><div class="text-[#00FF66] text-4xl animate-pulse">◈</div><h1 class="text-xl font-bold text-white mt-4">Agente observando o site…</h1><p class="text-slate-400 text-sm mt-2">Crawl, diagnóstico técnico e análise SEO/GEO/AEO em execução.</p></div><script>setInterval(async()=>{const r=await fetch("{{ url_for('audit.status',site_id=site.id,audit_id=audit.id) }}");const d=await r.json();if(d.status!=='running')location.reload()},5000)</script>
+{% elif audit.status == 'failed' %}<div class="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-8 mt-5"><h1 class="text-xl font-bold text-rose-300">Ciclo interrompido</h1><p class="text-slate-400 text-sm mt-2">{{ audit.error_message }}</p></div>
+{% else %}
+<div class="mt-5 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4"><div><div class="text-[10px] uppercase tracking-[.2em] text-[#00FF66]">Audit Intelligence</div><h1 class="text-3xl font-bold text-white mt-2">Decisões para {{ site.title or site.url }}</h1><p class="text-slate-400 text-sm mt-2">{{ audit.summary }}</p></div><div class="text-xs text-slate-600">{{ audit.pages_analyzed }} páginas · {{ audit.created_at.strftime('%d/%m/%Y %H:%M') }}</div></div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">{% for label,value in [('Visibilidade',audit.overall_score),('SEO',audit.seo_score),('GEO / IA',audit.geo_score),('AEO',audit.aeo_score)] %}<div class="rounded-2xl border border-white/10 bg-white/[.025] p-5"><span class="text-xs text-slate-500">{{ label }}</span><div class="text-3xl font-bold text-white mt-2">{{ value if value is not none else '—' }}</div><div class="mt-3 h-1 bg-white/5 rounded"><div class="h-full bg-[#00FF66] rounded" style="width:{{ value or 0 }}%"></div></div></div>{% endfor %}</div>
+{% if recommendations %}<section class="rounded-2xl border border-[#00FF66]/15 bg-[#00FF66]/[.02] p-6 mt-6"><div class="flex items-center justify-between"><div><h2 class="font-bold text-white">Oportunidades executáveis</h2><p class="text-xs text-slate-500 mt-1">O agente encontrou {{ recommendations|length }} recomendações ainda aguardando decisão.</p></div><span class="text-[10px] uppercase tracking-wider text-[#00FF66]">Prioridade</span></div><div class="space-y-3 mt-5">{% for r in recommendations %}<div class="bg-black/20 border border-white/10 rounded-xl p-4" id="rec-{{ r.id }}"><div class="flex flex-col md:flex-row md:items-center gap-4"><div class="flex-1"><div class="text-sm font-semibold text-white">{{ r.title_suggestion }}</div><div class="text-xs text-slate-500 mt-1">{{ r.search_term }} · {{ r.priority }}</div><p class="text-xs text-slate-400 mt-2">{{ r.rationale }}</p></div><div class="flex gap-2"><button onclick="scheduleRec('{{ r.id }}')" class="px-3 py-2 rounded-lg bg-[#00FF66] text-black text-xs font-bold">Colocar na execução</button><button onclick="dismissRec('{{ r.id }}')" class="px-3 py-2 rounded-lg border border-white/10 text-slate-500 text-xs">Ignorar</button></div></div></div>{% endfor %}</div></section>{% endif %}
+<section class="rounded-2xl border border-white/10 bg-white/[.025] p-6 mt-6"><div class="flex items-center justify-between mb-5"><h2 class="font-bold text-white">Diagnóstico</h2><span class="text-xs text-slate-600">{{ findings|length }} achados</span></div><div class="space-y-4">{% for f in findings %}<article class="border-l-2 pl-4 {{ 'border-rose-500' if f.severity=='critical' else 'border-amber-500' if f.severity=='warning' else 'border-white/20' }}"><div class="flex flex-wrap items-center gap-2"><span class="text-[9px] uppercase font-bold text-slate-400">{{ f.category }}</span><span class="text-[9px] uppercase font-bold {{ 'text-rose-300' if f.severity=='critical' else 'text-amber-300' if f.severity=='warning' else 'text-slate-500' }}">{{ f.severity }}</span><strong class="text-sm text-white">{{ f.title }}</strong></div><p class="text-xs text-slate-400 mt-1">{{ f.description }}</p><p class="text-xs text-[#00FF66]/80 mt-1">Ação: {{ f.how_to_fix }}</p><p class="text-[10px] text-slate-600 mt-1 truncate">{{ f.url }}</p></article>{% else %}<p class="text-sm text-slate-500">Nenhum achado registrado.</p>{% endfor %}</div></section>
+{% endif %}</div>
+<script>async function scheduleRec(id){const r=await fetch(`/audit/recommendations/${id}/schedule`,{method:'POST'});const d=await r.json();if(d.ok)document.getElementById('rec-'+id).remove();else alert(d.error||'Falha')}async function dismissRec(id){const r=await fetch(`/audit/recommendations/${id}/dismiss`,{method:'POST'});if(r.ok)document.getElementById('rec-'+id).remove()}</script>
 {% endblock %}
