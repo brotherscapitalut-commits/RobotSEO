@@ -1,25 +1,35 @@
 {% extends "base.html" %}
-{% block title %}Assinar — $100/mês{% endblock %}
+{% block title %}Assinar — AutoSEO AI{% endblock %}
 {% block body %}
-<div class="min-h-screen flex items-center justify-center">
-  <div class="glass rounded-2xl p-8 w-full max-w-md mx-4 text-center">
-    <h1 class="text-2xl font-bold text-white mb-1">Plano AutoContent AI</h1>
-    <p class="text-5xl font-extrabold gradient-text my-6">$100<span class="text-lg text-slate-400">/mês</span></p>
-    <ul class="text-left text-sm text-slate-300 space-y-2 mb-8">
-      <li>✅ Geração de artigos com IA (Claude + Gemini + Ollama)</li>
-      <li>✅ Agendamento automático de publicação</li>
-      <li>✅ Conectores WordPress e Webhook</li>
-      <li>✅ Sites ilimitados na sua conta</li>
-      <li>✅ Cancele quando quiser</li>
+<div class="min-h-screen bg-[#050507] flex items-center justify-center px-4">
+  <div class="w-full max-w-lg rounded-3xl border border-white/10 bg-white/[.03] backdrop-blur-xl p-8 lg:p-10 text-center">
+    <div class="text-xs uppercase tracking-[.25em] text-[#00FF66]">AutoSEO AI</div>
+    <h1 class="text-3xl font-bold text-white mt-3">SEO que analisa, decide e executa.</h1>
+    <p class="text-5xl font-extrabold text-[#00FF66] my-7">$100<span class="text-lg text-slate-500">/mês</span></p>
+    <ul class="text-left text-sm text-slate-300 space-y-3 mb-8">
+      <li>✓ Auditoria contínua de SEO, GEO e AEO</li>
+      <li>✓ Descoberta e priorização de oportunidades</li>
+      <li>✓ Geração de conteúdo com cascata de IA</li>
+      <li>✓ Publicação automática via WordPress/Webhook</li>
+      <li>✓ Google Trends e Search Console quando conectados</li>
+      <li>✓ Execução autônoma com fila e rastreabilidade</li>
     </ul>
-    <button onclick="startCheckout()" class="w-full bg-gradient-to-r from-brand-600 to-purple-600 text-white font-semibold py-3 rounded-xl shadow-glow">Assinar agora</button>
+    {% if stripe_configured %}
+    <button onclick="startCheckout()" class="w-full bg-[#00FF66] hover:bg-[#39ff87] text-black font-bold py-3.5 rounded-xl">Assinar agora</button>
+    {% else %}
+    <div class="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-left text-sm text-amber-200">
+      O Stripe ainda não está configurado neste ambiente. A aplicação está pronta; basta adicionar as chaves e o Price ID de produção.
+    </div>
+    {% endif %}
+    <a href="{{ url_for('auth.logout') }}" class="inline-block mt-5 text-xs text-slate-600 hover:text-slate-300">Sair</a>
   </div>
 </div>
 <script>
-async function startCheckout() {
-  const res = await fetch("{{ url_for('billing.create_checkout_session') }}", {method: 'POST'});
-  const data = await res.json();
-  if (data.url) window.location.href = data.url;
+async function startCheckout(){
+  const token='{{ csrf_token() }}';
+  const res=await fetch("{{ url_for('billing.create_checkout_session') }}",{method:'POST',headers:{'X-CSRFToken':token,'X-CSRF-Token':token,'Content-Type':'application/json'}});
+  let data={};try{data=await res.json()}catch(_){data={error:'Resposta inválida do servidor'}}
+  if(data.url){window.location.href=data.url}else{alert(data.error||'Não foi possível iniciar o checkout')}
 }
 </script>
 {% endblock %}
