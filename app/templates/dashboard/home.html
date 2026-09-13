@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — AutoContent AI{% endblock %}
+{% block body %}
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="w-64 glass border-r border-white/5 p-5 flex flex-col">
+    <div class="flex items-center gap-2 mb-8">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-purple-500 flex items-center justify-center font-bold text-white">⚡</div>
+      <span class="font-extrabold text-white">AutoContent<span class="gradient-text">AI</span></span>
+    </div>
+
+    {% if sites %}
+    <select onchange="location.href='{{ url_for('dashboard.home') }}?site_id='+this.value" class="w-full bg-ink-700 border border-white/10 rounded-lg px-3 py-2 text-sm mb-6">
+      {% for s in sites %}
+      <option value="{{ s.id }}" {{ 'selected' if active_site and s.id==active_site.id }}>{{ s.title or s.url }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+
+    <nav class="space-y-1 text-sm">
+      <a href="{{ url_for('dashboard.home') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-brand-500/10 text-brand-300 font-medium">📅 Calendário</a>
+      {% if active_site %}
+      <a href="{{ url_for('audit.home', site_id=active_site.id) }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition">🩺 Auditoria SEO/GEO/AEO</a>
+      <a href="{{ url_for('analytics.home', site_id=active_site.id) }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition">📊 Analytics & Trends</a>
+      <a href="{{ url_for('dashboard.site_settings', site_id=active_site.id) }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition">⚙️ Configurações do site</a>
+      {% endif %}
+      <a href="{{ url_for('dashboard.new_site') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition">➕ Novo site</a>
+    </nav>
+
+    <div class="mt-auto pt-6 border-t border-white/5">
+      <a href="{{ url_for('auth.logout') }}" class="text-xs text-slate-500 hover:text-slate-300">Sair</a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 p-8">
+    {% if not current_user.email_verified %}
+    <div class="glass border border-amber-500/30 rounded-xl px-4 py-3 mb-6 flex items-center justify-between text-sm">
+      <span class="text-amber-300">⚠️ Verifique seu e-mail para garantir acesso total à conta.</span>
+      <form method="POST" action="{{ url_for('auth.resend_verification') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-amber-300 underline">Reenviar e-mail</button></form>
+    </div>
+    {% endif %}
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-bold text-white">Seu calendário de conteúdo</h1>
+        <p class="text-slate-400 text-sm mt-1">Artigos gerados e publicados por IA automaticamente.</p>
+      </div>
+      {% if active_site %}
+      <button onclick="document.getElementById('modal-terms').classList.remove('hidden')" class="bg-gradient-to-r from-brand-600 to-purple-600 hover:opacity-90 transition text-white font-semibold px-5 py-2.5 rounded-xl shadow-glow text-sm">+ Adicionar termos de busca</button>
+      {% endif %}
+    </div>
+
+    {% if not sites %}
+    <div class="glass rounded-2xl p-10 text-center">
+      <p class="text-slate-300 mb-4">Você ainda não tem nenhum site conectado.</p>
+      <a href="{{ url_for('dashboard.new_site') }}" class="inline-block bg-gradient-to-r from-brand-600 to-purple-600 text-white font-semibold px-6 py-3 rounded-xl">Conectar meu primeiro site</a>
+    </div>
+    {% else %}
+
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {% for a in calendar_articles %}
+      <div class="glass rounded-2xl p-4 flex flex-col gap-3" id="article-{{ a.id }}">
+        {% if a.hero_image_url %}
+        <img src="{{ a.hero_image_url }}" class="w-full h-24 object-cover rounded-xl -mt-1">
+        {% endif %}
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-slate-500">{{ a.scheduled_for.strftime('%d/%m') if a.scheduled_for }}</span>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full
+            {{ 'bg-emerald-500/15 text-emerald-300' if a.status=='published'
+               else 'bg-amber-500/15 text-amber-300' if a.status=='ready'
+               else 'bg-rose-500/15 text-rose-300' if a.status=='failed'
+               else 'bg-slate-500/15 text-slate-300' }}">
+            {{ a.status }}
+          </span>
+        </div>
+        <a href="{{ url_for('dashboard.view_article', article_id=a.id) }}" class="text-sm font-semibold text-white leading-snug hover:text-brand-300">{{ a.title or a.search_term }}</a>
+        <p class="text-xs text-slate-500">Termo: {{ a.search_term }}</p>
+        {% if a.ai_provider_used %}
+        <p class="text-[10px] text-brand-400">Gerado via {{ a.ai_provider_used }}</p>
+        {% endif %}
+
+        <div class="mt-auto flex gap-2">
+          {% if a.status == 'scheduled' %}
+          <button onclick="genNow('{{ a.id }}')" class="flex-1 bg-emerald-600/90 hover:bg-emerald-600 text-white text-xs font-semibold py-2 rounded-lg">✍️ Gerar agora</button>
+          {% elif a.status == 'ready' %}
+          <button onclick="pubNow('{{ a.id }}')" class="flex-1 bg-brand-600/90 hover:bg-brand-600 text-white text-xs font-semibold py-2 rounded-lg">🚀 Publicar</button>
+          {% elif a.status == 'published' %}
+          <a href="{{ a.published_url }}" target="_blank" class="flex-1 text-center bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold py-2 rounded-lg">Ver artigo ↗</a>
+          {% elif a.status == 'failed' %}
+          <span class="flex-1 text-center text-rose-400 text-xs py-2" title="{{ a.error_message }}">⚠️ Falhou</span>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <p class="text-slate-500 col-span-full text-center py-10">Nenhum artigo agendado ainda. Adicione termos de busca para começar.</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </main>
+</div>
+
+<!-- Modal termos -->
+<div id="modal-terms" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center">
+  <div class="glass rounded-2xl p-6 w-full max-w-lg mx-4">
+    <h3 class="text-lg font-bold text-white mb-1">Adicionar termos de busca</h3>
+    <p class="text-slate-400 text-sm mb-4">Um por linha. Cada termo vira um artigo agendado automaticamente.</p>
+    <button type="button" onclick="suggestTerms()" id="btn-suggest" class="w-full mb-3 bg-white/5 hover:bg-white/10 text-brand-300 text-sm font-semibold py-2.5 rounded-lg border border-brand-500/20">✨ Sugerir termos com IA</button>
+    <form method="POST" action="{{ url_for('dashboard.add_search_terms', site_id=active_site.id) if active_site else '#' }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <textarea name="terms" id="terms-textarea" rows="6" class="w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm" placeholder="fretamento de ônibus para eventos corporativos&#10;transporte para convenções em Orlando"></textarea>
+      <div class="flex justify-end gap-2 mt-4">
+        <button type="button" onclick="document.getElementById('modal-terms').classList.add('hidden')" class="px-4 py-2 rounded-lg text-slate-400 hover:text-white text-sm">Cancelar</button>
+        <button class="bg-gradient-to-r from-brand-600 to-purple-600 text-white font-semibold px-5 py-2 rounded-lg text-sm">Agendar artigos</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+async function genNow(id) {
+  const res = await fetch(`/dashboard/articles/${id}/generate-now`, {method: 'POST'});
+  const data = await res.json();
+  if (data.ok) location.reload(); else alert('Erro: ' + data.error);
+}
+async function pubNow(id) {
+  const res = await fetch(`/dashboard/articles/${id}/publish-now`, {method: 'POST'});
+  const data = await res.json();
+  if (data.ok) location.reload(); else alert('Erro: ' + data.error);
+}
+async function suggestTerms() {
+  const btn = document.getElementById('btn-suggest');
+  btn.textContent = 'Pensando...'; btn.disabled = true;
+  try {
+    const res = await fetch(`/dashboard/sites/{{ active_site.id if active_site }}/suggest-terms`, {method: 'POST'});
+    const data = await res.json();
+    if (data.ok && data.terms.length) {
+      const box = document.getElementById('terms-textarea');
+      const current = box.value.trim();
+      const newTerms = data.terms.map(t => t.term).join('\n');
+      box.value = current ? current + '\n' + newTerms : newTerms;
+    } else {
+      alert('Não foi possível gerar sugestões agora (verifique as chaves de IA no .env).');
+    }
+  } finally {
+    btn.textContent = '✨ Sugerir termos com IA'; btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}

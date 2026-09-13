@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Usuários — Admin{% endblock %}
+{% block body %}
+<div class="max-w-5xl mx-auto py-10 px-4">
+  <a href="{{ url_for('admin.dashboard') }}" class="text-sm text-slate-400 hover:text-white">← Voltar</a>
+  <h1 class="text-2xl font-bold text-white mt-3 mb-6">Usuários ({{ users|length }})</h1>
+
+  <div class="glass rounded-2xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-white/5 text-slate-400 text-xs uppercase">
+        <tr>
+          <th class="text-left px-5 py-3">E-mail</th>
+          <th class="text-left px-5 py-3">Assinatura</th>
+          <th class="text-left px-5 py-3">Cadastro</th>
+          <th class="text-right px-5 py-3">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr class="border-t border-white/5">
+          <td class="px-5 py-3 text-white">{{ u.email }}</td>
+          <td class="px-5 py-3">
+            <span class="text-xs px-2 py-0.5 rounded-full {{ 'bg-emerald-500/15 text-emerald-300' if u.has_active_subscription else 'bg-slate-500/15 text-slate-400' }}">
+              {{ u.subscription_status }}
+            </span>
+          </td>
+          <td class="px-5 py-3 text-slate-400">{{ u.created_at.strftime('%d/%m/%Y') }}</td>
+          <td class="px-5 py-3 text-right">
+            <form method="POST" action="{{ url_for('admin.toggle_admin', user_id=u.id) }}" class="inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="text-xs text-brand-400 hover:underline">Tornar admin</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

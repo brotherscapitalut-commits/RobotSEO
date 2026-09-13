@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Auditoria SEO/GEO/AEO — {{ site.title }}{% endblock %}
+{% block body %}
+<div class="max-w-4xl mx-auto py-10 px-4">
+  <a href="{{ url_for('dashboard.home', site_id=site.id) }}" class="text-sm text-slate-400 hover:text-white">← Voltar ao calendário</a>
+  <h1 class="text-2xl font-bold text-white mt-3 mb-1">Auditoria SEO / GEO / AEO</h1>
+  <p class="text-slate-400 text-sm mb-8">Um agente de IA analisa seu site como um consultor sênior faria: SEO técnico, citabilidade por IA (GEO), formato de resposta direta (AEO), e sugere artigos pra fechar lacunas.</p>
+
+  <div class="glass rounded-2xl p-6 mb-8">
+    <h2 class="font-semibold text-white mb-4">Rodar nova auditoria</h2>
+    <form method="POST" action="{{ url_for('audit.run', site_id=site.id) }}" class="space-y-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="flex items-center gap-2 text-sm text-slate-300">
+        <input type="checkbox" name="scope_crawl" checked class="rounded bg-ink-700 border-white/20">
+        Rastrear o domínio inteiro a partir de {{ site.url }} (até 25 páginas)
+      </label>
+      <label class="flex items-center gap-2 text-sm text-slate-300">
+        <input type="checkbox" name="scope_urls" id="chk-urls" class="rounded bg-ink-700 border-white/20">
+        Analisar URLs específicas também
+      </label>
+      <textarea name="input_urls" rows="4" placeholder="https://seusite.com/pagina-1&#10;https://seusite.com/pagina-2" class="w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm"></textarea>
+      <button class="w-full bg-gradient-to-r from-brand-600 to-purple-600 text-white font-semibold py-3 rounded-xl">🔎 Rodar auditoria completa</button>
+    </form>
+  </div>
+
+  <h2 class="font-semibold text-white mb-4">Histórico</h2>
+  <div class="space-y-3">
+    {% for a in audits %}
+    <a href="{{ url_for('audit.view', site_id=site.id, audit_id=a.id) }}" class="glass rounded-xl p-4 flex items-center justify-between hover:border-brand-500/30 block">
+      <div>
+        <p class="text-sm text-white font-medium">{{ a.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+        <p class="text-xs text-slate-500">{{ a.pages_analyzed or 0 }} páginas · escopo: {{ a.scope }}</p>
+      </div>
+      <div class="flex items-center gap-3">
+        {% if a.status == 'running' %}
+        <span class="text-xs px-2 py-1 rounded-full bg-amber-500/15 text-amber-300">Rodando...</span>
+        {% elif a.status == 'failed' %}
+        <span class="text-xs px-2 py-1 rounded-full bg-rose-500/15 text-rose-300">Falhou</span>
+        {% else %}
+        <span class="text-lg font-bold text-white">{{ a.overall_score or '—' }}<span class="text-xs text-slate-500">/100</span></span>
+        {% endif %}
+      </div>
+    </a>
+    {% else %}
+    <p class="text-slate-500 text-sm">Nenhuma auditoria rodada ainda.</p>
+    {% endfor %}
+  </div>
+</div>
+<script>
+document.getElementById('chk-urls').addEventListener('change', function(){
+  document.querySelector('textarea[name=input_urls]').style.display = this.checked ? 'block' : 'none';
+});
+</script>
+{% endblock %}

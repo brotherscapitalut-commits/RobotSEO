@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Assinar — $100/mês{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center">
+  <div class="glass rounded-2xl p-8 w-full max-w-md mx-4 text-center">
+    <h1 class="text-2xl font-bold text-white mb-1">Plano AutoContent AI</h1>
+    <p class="text-5xl font-extrabold gradient-text my-6">$100<span class="text-lg text-slate-400">/mês</span></p>
+    <ul class="text-left text-sm text-slate-300 space-y-2 mb-8">
+      <li>✅ Geração de artigos com IA (Claude + Gemini + Ollama)</li>
+      <li>✅ Agendamento automático de publicação</li>
+      <li>✅ Conectores WordPress e Webhook</li>
+      <li>✅ Sites ilimitados na sua conta</li>
+      <li>✅ Cancele quando quiser</li>
+    </ul>
+    <button onclick="startCheckout()" class="w-full bg-gradient-to-r from-brand-600 to-purple-600 text-white font-semibold py-3 rounded-xl shadow-glow">Assinar agora</button>
+  </div>
+</div>
+<script>
+async function startCheckout() {
+  const res = await fetch("{{ url_for('billing.create_checkout_session') }}", {method: 'POST'});
+  const data = await res.json();
+  if (data.url) window.location.href = data.url;
+}
+</script>
+{% endblock %}

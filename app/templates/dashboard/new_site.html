@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Novo site{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center">
+  <div class="glass rounded-2xl p-8 w-full max-w-lg mx-4">
+    <h1 class="text-xl font-bold text-white mb-6">Conectar novo site</h1>
+    <form method="POST" class="space-y-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div>
+        <label class="text-xs font-medium text-slate-400">URL do site</label>
+        <input name="url" required placeholder="https://seusite.com" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-400">Nome do site</label>
+        <input name="title" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-400">Descrição do negócio</label>
+        <textarea name="description" rows="3" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs font-medium text-slate-400">Idioma</label>
+          <select name="language" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">
+            <option value="pt">Português</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-400">Método de publicação</label>
+          <select name="publish_method" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">
+            <option value="webhook">Webhook genérico</option>
+            <option value="wordpress">WordPress</option>
+          </select>
+        </div>
+      </div>
+      <button class="w-full bg-gradient-to-r from-brand-600 to-purple-600 text-white font-semibold py-3 rounded-xl mt-2">Criar site</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

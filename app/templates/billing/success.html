@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Assinatura ativada{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center">
+  <div class="glass rounded-2xl p-10 w-full max-w-md mx-4 text-center">
+    <div class="text-5xl mb-4">🎉</div>
+    <h1 class="text-xl font-bold text-white mb-2">Assinatura ativada!</h1>
+    <p class="text-slate-400 text-sm mb-6">Pode levar alguns segundos para confirmarmos o pagamento via Stripe.</p>
+    <a href="{{ url_for('dashboard.home') }}" class="inline-block bg-gradient-to-r from-brand-600 to-purple-600 text-white font-semibold px-6 py-3 rounded-xl">Ir para o dashboard</a>
+  </div>
+</div>
+{% endblock %}

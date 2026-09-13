@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ article.title or article.search_term }}{% endblock %}
+{% block body %}
+<div class="max-w-3xl mx-auto py-10 px-4">
+  <a href="{{ url_for('dashboard.home', site_id=site.id) }}" class="text-sm text-slate-400 hover:text-white">← Voltar</a>
+
+  <div class="flex items-center justify-between mt-4 mb-2">
+    <span class="text-xs text-slate-500">Termo de busca: {{ article.search_term }}</span>
+    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full
+      {{ 'bg-emerald-500/15 text-emerald-300' if article.status=='published'
+         else 'bg-amber-500/15 text-amber-300' if article.status=='ready'
+         else 'bg-rose-500/15 text-rose-300' if article.status=='failed'
+         else 'bg-slate-500/15 text-slate-300' }}">
+      {{ article.status }}
+    </span>
+  </div>
+
+  {% if article.error_message %}
+  <div class="glass border border-rose-500/30 rounded-xl p-4 mb-4 text-sm text-rose-300">⚠️ {{ article.error_message }}</div>
+  {% endif %}
+
+  {% if article.hero_image_url %}
+  <img src="{{ article.hero_image_url }}" class="w-full h-56 object-cover rounded-2xl mb-4">
+  {% endif %}
+
+  {% if article.status == 'published' %}
+  <a href="{{ article.published_url }}" target="_blank" class="inline-block mb-4 text-sm text-brand-400 hover:underline">Ver publicado ↗</a>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('dashboard.edit_article', article_id=article.id) }}" class="glass rounded-2xl p-6">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="text-xs text-slate-400">Título</label>
+    <input name="title" value="{{ article.title or '' }}" class="w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-lg font-bold mb-4 mt-1">
+
+    <label class="text-xs text-slate-400">Meta descrição</label>
+    <input name="meta_description" value="{{ article.meta_description or '' }}" class="w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm mb-4 mt-1">
+
+    <label class="text-xs text-slate-400">Conteúdo (HTML)</label>
+    <textarea name="content_html" rows="20" class="w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-mono mt-1">{{ article.content_html or '' }}</textarea>
+
+    <div class="flex justify-end gap-2 mt-4">
+      <button class="bg-white/5 hover:bg-white/10 text-slate-300 font-semibold px-5 py-2.5 rounded-xl text-sm">Salvar alterações</button>
+    </div>
+  </form>
+
+  <div class="mt-6 glass rounded-2xl p-6">
+    <h3 class="text-sm font-semibold text-white mb-3">Preview</h3>
+    <div class="prose prose-invert prose-sm max-w-none">{{ article.content_html | safe }}</div>
+  </div>
+</div>
+{% endblock %}

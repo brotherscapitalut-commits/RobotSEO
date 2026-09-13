@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Admin — AutoContent AI{% endblock %}
+{% block body %}
+<div class="flex min-h-screen">
+  <aside class="w-64 glass border-r border-white/5 p-5 flex flex-col">
+    <div class="flex items-center gap-2 mb-8">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center font-bold text-white">👑</div>
+      <span class="font-extrabold text-white">Admin<span class="gradient-text">Panel</span></span>
+    </div>
+    <nav class="space-y-1 text-sm">
+      <a href="{{ url_for('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-brand-500/10 text-brand-300 font-medium">📊 Visão geral</a>
+      <a href="{{ url_for('admin.users') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition">👥 Usuários</a>
+      <a href="{{ url_for('admin.sites') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition">🌐 Sites</a>
+    </nav>
+    <div class="mt-auto pt-6 border-t border-white/5">
+      <a href="{{ url_for('auth.logout') }}" class="text-xs text-slate-500 hover:text-slate-300">Sair</a>
+    </div>
+  </aside>
+
+  <main class="flex-1 p-8">
+    <h1 class="text-2xl font-bold text-white mb-8">Visão geral do negócio</h1>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="glass rounded-2xl p-5">
+        <p class="text-xs text-slate-400">MRR</p>
+        <p class="text-2xl font-bold text-emerald-400 mt-1">${{ mrr }}</p>
+      </div>
+      <div class="glass rounded-2xl p-5">
+        <p class="text-xs text-slate-400">Assinantes ativos</p>
+        <p class="text-2xl font-bold text-white mt-1">{{ active_subs }}</p>
+      </div>
+      <div class="glass rounded-2xl p-5">
+        <p class="text-xs text-slate-400">Sites conectados</p>
+        <p class="text-2xl font-bold text-white mt-1">{{ total_sites }}</p>
+      </div>
+      <div class="glass rounded-2xl p-5">
+        <p class="text-xs text-slate-400">Total de usuários</p>
+        <p class="text-2xl font-bold text-white mt-1">{{ total_users }}</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4 mb-8">
+      <div class="glass rounded-2xl p-5">
+        <p class="text-xs text-slate-400">Artigos gerados</p>
+        <p class="text-2xl font-bold text-white mt-1">{{ total_articles }}</p>
+      </div>
+      <div class="glass rounded-2xl p-5">
+        <p class="text-xs text-slate-400">Publicados</p>
+        <p class="text-2xl font-bold text-emerald-400 mt-1">{{ published }}</p>
+      </div>
+      <div class="glass rounded-2xl p-5">
+        <p class="text-xs text-slate-400">Falhas (gargalos)</p>
+        <p class="text-2xl font-bold text-rose-400 mt-1">{{ failed }}</p>
+      </div>
+    </div>
+
+    <div class="glass rounded-2xl p-6">
+      <h2 class="font-semibold text-white mb-4">⚠️ Últimas falhas (para você identificar gargalos de IA/publicação)</h2>
+      <div class="space-y-2">
+        {% for a in recent_failed %}
+        <div class="flex items-center justify-between text-sm border-b border-white/5 py-2">
+          <span class="text-slate-300">{{ a.search_term }}</span>
+          <span class="text-rose-400 text-xs">{{ a.error_message[:80] if a.error_message }}</span>
+        </div>
+        {% else %}
+        <p class="text-slate-500 text-sm">Nenhuma falha registrada. 🎉</p>
+        {% endfor %}
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}

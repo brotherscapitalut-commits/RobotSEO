@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Analytics — {{ site.title }}{% endblock %}
+{% block body %}
+<div class="max-w-6xl mx-auto py-10 px-4">
+  <a href="{{ url_for('dashboard.home', site_id=site.id) }}" class="text-sm text-slate-400 hover:text-white">← Voltar ao calendário</a>
+  <h1 class="text-2xl font-bold text-white mt-3 mb-8">Analytics — {{ site.title or site.url }}</h1>
+
+  <!-- Alertas de Tendências -->
+  {% if alerts %}
+  <div class="glass rounded-2xl p-6 mb-6 border border-amber-500/20">
+    <h2 class="font-semibold text-white mb-1 flex items-center gap-2">🔥 Alertas de oportunidade — Google Trends</h2>
+    <p class="text-slate-400 text-sm mb-4">Termos do seu setor com pico de interesse. Priorize conteúdo agora.</p>
+    <div class="space-y-3">
+      {% for a in alerts %}
+      <div class="flex items-center justify-between bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3" id="alert-{{ a.id }}">
+        <div>
+          <p class="text-white font-medium text-sm">{{ a.keyword }}</p>
+          <p class="text-amber-300 text-xs">{{ a.reason }}</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="actAlert('{{ a.id }}')" class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold px-3 py-2 rounded-lg">Criar artigo agora</button>
+          <button onclick="dismissAlert('{{ a.id }}')" class="text-slate-500 hover:text-slate-300 text-xs px-2">Ignorar</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Conexão GSC -->
+  {% if not connection %}
+  <div class="glass rounded-2xl p-8 text-center mb-6">
+    <div class="text-4xl mb-3">📊</div>
+    <h2 class="text-lg font-bold text-white mb-2">Conecte o Google Search Console</h2>
+    <p class="text-slate-400 text-sm mb-5 max-w-md mx-auto">Veja cliques, impressões e posição média dos seus artigos direto no Google. Acesso somente leitura.</p>
+    <a href="{{ url_for('analytics.google_connect', site_id=site.id) }}" class="inline-block bg-white text-ink-900 font-semibold px-6 py-3 rounded-xl">Conectar conta Google</a>
+  </div>
+  {% elif not connection.gsc_property_url %}
+  <div class="glass rounded-2xl p-6 mb-6 border border-amber-500/20">
+    <p class="text-amber-300 text-sm">Conta Google conectada, mas nenhuma propriedade selecionada.</p>
+    <a href="{{ url_for('analytics.select_property', site_id=site.id) }}" class="inline-block mt-3 bg-amber-500/20 text-amber-300 text-sm font-semibold px-4 py-2 rounded-lg">Selecionar propriedade</a>
+  </div>
+  {% else %}
+  <div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-slate-400">✅ Conectado a <span class="text-white">{{ connection.gsc_property_url }}</span>
+      {% if connection.last_synced_at %}· última sync: {{ connection.last_synced_at.strftime('%d/%m %H:%M') }}{% endif %}
+    </p>
+    <form method="POST" action="{{ url_for('analytics.sync_now', site_id=site.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="text-xs bg-white/5 hover:bg-white/10 text-slate-300 px-3 py-2 rounded-lg">🔄 Sincronizar agora</button>
+    </form>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="glass rounded-2xl p-5"><p class="text-xs text-slate-400">Cliques (28d)</p><p class="text-2xl font-bold text-white mt-1">{{ totals.clicks }}</p></div>
+    <div class="glass rounded-2xl p-5"><p class="text-xs text-slate-400">Impressões (28d)</p><p class="text-2xl font-bold text-white mt-1">{{ totals.impressions }}</p></div>
+    <div class="glass rounded-2xl p-5"><p class="text-xs text-slate-400">CTR médio</p><p class="text-2xl font-bold text-white mt-1">{{ totals.ctr }}%</p></div>
+    <div class="glass rounded-2xl p-5"><p class="text-xs text-slate-400">Posição média</p><p class="text-2xl font-bold text-white mt-1">{{ totals.position }}</p></div>
+  </div>
+
+  <div class="glass rounded-2xl p-6 mb-6">
+    <h2 class="font-semibold text-white mb-4">Desempenho de busca (28 dias)</h2>
+    <canvas id="chart" height="90"></canvas>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div class="glass rounded-2xl p-6">
+      <h3 class="font-semibold text-white mb-4">Top termos de busca</h3>
+      <div class="space-y-2 text-sm">
+        {% for q in top_queries %}
+        <div class="flex justify-between border-b border-white/5 pb-2">
+          <span class="text-slate-300">{{ q.query }}</span>
+          <span class="text-slate-500">{{ q.clicks }} cliques · pos {{ '%.1f'|format(q.position) }}</span>
+        </div>
+        {% else %}
+        <p class="text-slate-500">Sem dados ainda.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="glass rounded-2xl p-6">
+      <h3 class="font-semibold text-white mb-4">Top páginas</h3>
+      <div class="space-y-2 text-sm">
+        {% for p in top_pages %}
+        <div class="flex justify-between border-b border-white/5 pb-2">
+          <span class="text-slate-300 truncate max-w-[220px]">{{ p.page }}</span>
+          <span class="text-slate-500">{{ p.impressions }} impr · pos {{ '%.1f'|format(p.position) }}</span>
+        </div>
+        {% else %}
+        <p class="text-slate-500">Sem dados ainda.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Monitor de Google Trends -->
+  <div class="glass rounded-2xl p-6">
+    <h2 class="font-semibold text-white mb-1">📈 Monitor de tendências do setor</h2>
+    <p class="text-slate-400 text-sm mb-4">Adicione termos-chave do seu mercado. Verificamos o Google Trends diariamente e criamos um alerta se o interesse disparar.</p>
+
+    <form method="POST" action="{{ url_for('analytics.add_trend_topic', site_id=site.id) }}" class="flex gap-2 mb-5">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input name="keyword" required placeholder="ex: fretamento para eventos, transporte hurricane evacuation" class="flex-1 bg-ink-700 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm">
+      <button class="bg-gradient-to-r from-brand-600 to-purple-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm">+ Monitorar</button>
+    </form>
+
+    <div class="space-y-2">
+      {% for t in trend_topics %}
+      <div class="flex items-center justify-between text-sm border-b border-white/5 py-2">
+        <span class="text-slate-300">{{ t.keyword }}</span>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-slate-500">score atual: {{ '%.0f'|format(t.last_score or 0) }} {% if t.last_checked_at %}· {{ t.last_checked_at.strftime('%d/%m') }}{% else %}· aguardando 1ª checagem{% endif %}</span>
+          <form method="POST" action="{{ url_for('analytics.remove_trend_topic', site_id=site.id, topic_id=t.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="text-rose-400 hover:text-rose-300 text-xs">Remover</button>
+          </form>
+        </div>
+      </div>
+      {% else %}
+      <p class="text-slate-500 text-sm">Nenhum termo monitorado ainda.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+{% if connection and connection.gsc_property_url %}
+const daily = {{ daily|tojson }};
+new Chart(document.getElementById('chart'), {
+  type: 'line',
+  data: {
+    labels: daily.map(d => d.date),
+    datasets: [
+      { label: 'Cliques', data: daily.map(d => d.clicks), borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.1)', tension: 0.3, fill: true },
+      { label: 'Impressões', data: daily.map(d => d.impressions), borderColor: '#7c5cff', backgroundColor: 'rgba(124,92,255,0.08)', tension: 0.3, fill: true, yAxisID: 'y1' }
+    ]
+  },
+  options: {
+    responsive: true,
+    interaction: { mode: 'index', intersect: false },
+    scales: {
+      y: { position: 'left', ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      y1: { position: 'right', ticks: { color: '#94a3b8' }, grid: { display: false } },
+      x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+    },
+    plugins: { legend: { labels: { color: '#cbd5e1' } } }
+  }
+});
+{% endif %}
+
+async function actAlert(id) {
+  const res = await fetch(`/analytics/alerts/${id}/create-article`, {method: 'POST'});
+  const data = await res.json();
+  if (data.ok) { document.getElementById('alert-'+id).remove(); alert('Artigo agendado! Ele será gerado no próximo ciclo (até 5 min).'); }
+}
+async function dismissAlert(id) {
+  await fetch(`/analytics/alerts/${id}/dismiss`, {method: 'POST'});
+  document.getElementById('alert-'+id).remove();
+}
+</script>
+{% endblock %}

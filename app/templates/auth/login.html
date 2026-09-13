@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Entrar — AutoContent AI{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center relative overflow-hidden">
+  <div class="absolute -top-40 -left-40 w-96 h-96 bg-brand-500/30 rounded-full blur-3xl"></div>
+  <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
+
+  <div class="relative z-10 w-full max-w-md mx-4">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center gap-2 mb-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-purple-500 flex items-center justify-center font-bold text-white">⚡</div>
+        <span class="text-xl font-extrabold text-white">AutoContent<span class="gradient-text">AI</span></span>
+      </div>
+      <p class="text-slate-400 text-sm">Conteúdo, agendamento e publicação no piloto automático.</p>
+    </div>
+
+    <div class="glass rounded-2xl p-8 shadow-glow">
+      <h1 class="text-2xl font-bold text-white mb-6">Bem-vindo de volta</h1>
+      <form method="POST" class="space-y-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div>
+          <label class="text-xs font-medium text-slate-400">E-mail</label>
+          <input type="email" name="email" required class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="voce@empresa.com">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-400">Senha</label>
+          <input type="password" name="password" required class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="••••••••">
+        </div>
+        <button class="w-full bg-gradient-to-r from-brand-600 to-purple-600 hover:opacity-90 transition text-white font-semibold py-3 rounded-xl shadow-glow">Entrar</button>
+      </form>
+      <p class="text-center text-sm text-slate-400 mt-6">
+        Não tem conta? <a href="{{ url_for('auth.register') }}" class="text-brand-400 font-medium hover:underline">Criar conta — $100/mês</a>
+      </p>
+      <p class="text-center text-xs text-slate-500 mt-2">
+        <a href="{{ url_for('auth.forgot_password') }}" class="hover:text-slate-300">Esqueci minha senha</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Configurações — {{ site.title }}{% endblock %}
+{% block body %}
+<div class="max-w-3xl mx-auto py-10 px-4">
+  <a href="{{ url_for('dashboard.home', site_id=site.id) }}" class="text-sm text-slate-400 hover:text-white">← Voltar ao calendário</a>
+  <h1 class="text-2xl font-bold text-white mt-3 mb-8">{{ site.title or site.url }}</h1>
+
+  <form method="POST" class="space-y-8">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="glass rounded-2xl p-6">
+      <h2 class="font-semibold text-white mb-4">Informações do site</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs text-slate-400">Título</label>
+          <input name="title" value="{{ site.title or '' }}" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Descrição do negócio</label>
+          <textarea name="description" rows="3" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">{{ site.description or '' }}</textarea>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Instruções de escrita (tom, estilo)</label>
+          <textarea name="writing_instructions" rows="3" placeholder="Ex: tom conversacional, sempre citar dados concretos, evitar jargão técnico" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">{{ site.writing_instructions or '' }}</textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-slate-400">Tamanho do artigo (palavras)</label>
+            <input type="number" name="article_length_words" value="{{ site.article_length_words }}" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Artigos por semana</label>
+            <input type="number" name="publish_frequency_per_week" value="{{ site.publish_frequency_per_week }}" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">
+          </div>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-slate-300">
+          <input type="checkbox" name="auto_publish" {{ 'checked' if site.auto_publish }} class="rounded bg-ink-700 border-white/20">
+          Publicar automaticamente (sem revisão manual)
+        </label>
+      </div>
+    </div>
+
+    <div class="glass rounded-2xl p-6">
+      <h2 class="font-semibold text-white mb-4">Publicação</h2>
+      <label class="text-xs text-slate-400">Método</label>
+      <select name="publish_method" id="pm" onchange="togglePM()" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm mb-4">
+        <option value="webhook" {{ 'selected' if site.publish_method=='webhook' }}>Webhook genérico</option>
+        <option value="wordpress" {{ 'selected' if site.publish_method=='wordpress' }}>WordPress (REST API)</option>
+      </select>
+
+      <div id="pm-wordpress" class="space-y-3 {{ '' if site.publish_method=='wordpress' else 'hidden' }}">
+        <input name="wp_base_url" placeholder="https://seusite.com" value="{{ site.wp_base_url or '' }}" class="w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">
+        <input name="wp_username" placeholder="Usuário WordPress" value="{{ site.wp_username or '' }}" class="w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">
+        <input name="wp_app_password" placeholder="Application Password" value="{{ site.wp_app_password or '' }}" class="w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">
+        <p class="text-[11px] text-slate-500">Gere em: WP Admin → Usuários → Perfil → Senhas de Aplicativo.</p>
+      </div>
+
+      <div id="pm-webhook" class="space-y-3 {{ '' if site.publish_method=='webhook' else 'hidden' }}">
+        <input name="webhook_url" placeholder="https://seusite.com/api/receber-artigo" value="{{ site.webhook_url or '' }}" class="w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">
+        <p class="text-[11px] text-slate-500">Segredo HMAC (para validar autenticidade): <code class="text-brand-400">{{ site.webhook_secret }}</code></p>
+      </div>
+    </div>
+
+    <div class="glass rounded-2xl p-6">
+      <h2 class="font-semibold text-white mb-4">O que você vende / não vende</h2>
+      <p class="text-xs text-slate-500 mb-3">Um item por linha. Evita que a IA escreva sobre serviços que você não oferece.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs text-slate-400">Vende</label>
+          <textarea name="what_you_sell" rows="5" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">{{ site.what_you_sell or '' }}</textarea>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Não vende</label>
+          <textarea name="what_you_dont_sell" rows="5" class="mt-1 w-full bg-ink-700 border border-white/10 rounded-xl px-4 py-3 text-white text-sm">{{ site.what_you_dont_sell or '' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <button class="w-full bg-gradient-to-r from-brand-600 to-purple-600 text-white font-semibold py-3 rounded-xl">Salvar configurações</button>
+  </form>
+
+  <div class="glass rounded-2xl p-6 mt-8">
+    <h2 class="font-semibold text-white mb-4">Concorrentes</h2>
+    <p class="text-xs text-slate-500 mb-3">Ajuda a IA a entender seu posicionamento e sugerir termos melhores.</p>
+    <div class="space-y-2 mb-4">
+      {% for c in site.competitors %}
+      <div class="flex items-center justify-between bg-ink-700 rounded-lg px-4 py-2 text-sm">
+        <span class="text-white">{{ c.domain }}</span>
+        <form method="POST" action="{{ url_for('dashboard.remove_competitor', site_id=site.id, competitor_id=c.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="text-rose-400 text-xs">Remover</button>
+        </form>
+      </div>
+      {% else %}
+      <p class="text-slate-500 text-sm">Nenhum concorrente cadastrado ainda.</p>
+      {% endfor %}
+    </div>
+    <form method="POST" action="{{ url_for('dashboard.add_competitor', site_id=site.id) }}" class="flex gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input name="domain" placeholder="concorrente.com" class="flex-1 bg-ink-700 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm">
+      <button class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">+ Adicionar</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function togglePM() {
+  const v = document.getElementById('pm').value;
+  document.getElementById('pm-wordpress').classList.toggle('hidden', v !== 'wordpress');
+  document.getElementById('pm-webhook').classList.toggle('hidden', v !== 'webhook');
+}
+</script>
+{% endblock %}

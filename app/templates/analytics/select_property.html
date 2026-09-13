@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Selecionar propriedade — GSC{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center">
+  <div class="glass rounded-2xl p-8 w-full max-w-lg mx-4">
+    <h1 class="text-xl font-bold text-white mb-1">Selecione a propriedade</h1>
+    <p class="text-slate-400 text-sm mb-6">Qual propriedade do Search Console corresponde a {{ site.url }}?</p>
+    <form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="space-y-2 mb-6">
+        {% for p in properties %}
+        <label class="flex items-center gap-3 bg-ink-700 border border-white/10 rounded-xl px-4 py-3 cursor-pointer hover:border-brand-500/40">
+          <input type="radio" name="property_url" value="{{ p }}" required class="accent-brand-500">
+          <span class="text-white text-sm">{{ p }}</span>
+        </label>
+        {% else %}
+        <p class="text-slate-500 text-sm">Nenhuma propriedade encontrada nesta conta Google.</p>
+        {% endfor %}
+      </div>
+      <button class="w-full bg-gradient-to-r from-brand-600 to-purple-600 text-white font-semibold py-3 rounded-xl">Confirmar e sincronizar</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
