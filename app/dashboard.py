@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from app.extensions import db
-from app.models import Site, Article, SearchTerm, Competitor
+from app.models import Site, Article, SearchTerm, Competitor, SiteAudit, ContentRecommendation, AuditFinding
 
 bp = Blueprint("dashboard", __name__)
 
@@ -22,6 +22,7 @@ def home():
     active_site = next((s for s in sites if s.id == site_id), None)
 
     calendar_articles = []
+    latest_audit = None
     if active_site:
         start = datetime.utcnow()
         end = start + timedelta(days=35)
@@ -34,12 +35,14 @@ def home():
             .order_by(Article.scheduled_for.asc())
             .all()
         )
+        latest_audit = SiteAudit.query.filter_by(site_id=active_site.id).order_by(SiteAudit.created_at.desc()).first()
 
     return render_template(
         "dashboard/home.html",
         sites=sites,
         active_site=active_site,
         calendar_articles=calendar_articles,
+        latest_audit=latest_audit,
     )
 
 
@@ -67,7 +70,6 @@ def new_site():
 @login_required
 def site_settings(site_id):
     site = Site.query.filter_by(id=site_id, user_id=current_user.id).first_or_404()
-
     if request.method == "POST":
         form = request.form
         site.title = form.get("title", site.title)
@@ -86,7 +88,6 @@ def site_settings(site_id):
         db.session.commit()
         flash("Configurações salvas.", "success")
         return redirect(url_for("dashboard.site_settings", site_id=site.id))
-
     return render_template("dashboard/site_settings.html", site=site)
 
 
@@ -96,22 +97,13 @@ def add_search_terms(site_id):
     site = Site.query.filter_by(id=site_id, user_id=current_user.id).first_or_404()
     raw_terms = request.form.get("terms", "")
     terms = [t.strip() for t in raw_terms.split("\n") if t.strip()]
-
     days_between = 7 / max(site.publish_frequency_per_week, 1)
-    last = Article.query.filter_by(site_id=site.id).order_by(
-        Article.scheduled_for.desc()
-    ).first()
-    next_slot = (last.scheduled_for if last and last.scheduled_for else datetime.utcnow())
-
+    last = Article.query.filter_by(site_id=site.id).order_by(Article.scheduled_for.desc()).first()
+    next_slot = last.scheduled_for if last and last.scheduled_for else datetime.utcnow()
     for term in terms:
         next_slot = next_slot + timedelta(days=days_between)
         db.session.add(SearchTerm(site_id=site.id, term=term))
-        db.session.add(Article(
-            site_id=site.id,
-            search_term=term,
-            status="scheduled",
-            scheduled_for=next_slot,
-        ))
+        db.session.add(Article(site_id=site.id, search_term=term, status="scheduled", scheduled_for=next_slot))
     db.session.commit()
     flash(f"{len(terms)} artigos agendados.", "success")
     return redirect(url_for("dashboard.home", site_id=site.id))
@@ -120,12 +112,9 @@ def add_search_terms(site_id):
 @bp.route("/dashboard/articles/<article_id>/generate-now", methods=["POST"])
 @login_required
 def generate_now(article_id):
-    """Gera o artigo imediatamente (botão 'Write Article' manual)."""
     from app.ai.engine import generate_article_content, AIGenerationError
-
     article = Article.query.get_or_404(article_id)
     site = Site.query.filter_by(id=article.site_id, user_id=current_user.id).first_or_404()
-
     try:
         result = generate_article_content(site, article.search_term, article_id=article.id)
         article.title = result["title"]
@@ -155,7 +144,6 @@ def view_article(article_id):
 def edit_article(article_id):
     article = Article.query.get_or_404(article_id)
     Site.query.filter_by(id=article.site_id, user_id=current_user.id).first_or_404()
-
     article.title = request.form.get("title", article.title)
     article.content_html = request.form.get("content_html", article.content_html)
     article.meta_description = request.form.get("meta_description", article.meta_description)
@@ -168,13 +156,10 @@ def edit_article(article_id):
 @login_required
 def publish_now(article_id):
     from app.publishers.webhook import publish_article
-
     article = Article.query.get_or_404(article_id)
     site = Site.query.filter_by(id=article.site_id, user_id=current_user.id).first_or_404()
-
     if article.status != "ready":
         return jsonify({"ok": False, "error": "Artigo ainda não está pronto"}), 400
-
     try:
         url = publish_article(site, article)
         article.status = "published"
@@ -213,11 +198,9 @@ def remove_competitor(site_id, competitor_id):
 @login_required
 def suggest_terms(site_id):
     from app.audit.ai_analyst import suggest_search_terms
-
     site = Site.query.filter_by(id=site_id, user_id=current_user.id).first_or_404()
     business_context = f"{site.title or site.url} — {site.description or ''}. Vende: {site.what_you_sell or ''}. Não vende: {site.what_you_dont_sell or ''}."
     competitors = [c.domain for c in site.competitors]
     existing_topics = [a.search_term for a in Article.query.filter_by(site_id=site.id).all() if a.search_term]
-
     terms = suggest_search_terms(business_context, competitors, existing_topics)
     return jsonify({"ok": True, "terms": terms})
