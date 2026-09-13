@@ -24,11 +24,7 @@ def home():
     if active_site:
         start = datetime.utcnow() - timedelta(days=1)
         end = datetime.utcnow() + timedelta(days=35)
-        calendar_articles = Article.query.filter(
-            Article.site_id == active_site.id,
-            Article.scheduled_for >= start,
-            Article.scheduled_for <= end,
-        ).order_by(Article.scheduled_for.asc()).all()
+        calendar_articles = Article.query.filter(Article.site_id == active_site.id, Article.scheduled_for >= start, Article.scheduled_for <= end).order_by(Article.scheduled_for.asc()).all()
         latest_audit = SiteAudit.query.filter_by(site_id=active_site.id).order_by(SiteAudit.created_at.desc()).first()
     return render_template("dashboard/home.html", sites=sites, active_site=active_site, calendar_articles=calendar_articles, latest_audit=latest_audit)
 
@@ -39,15 +35,7 @@ def new_site():
     if not require_subscription():
         return redirect(url_for("billing.checkout"))
     if request.method == "POST":
-        site = Site(
-            user_id=current_user.id,
-            url=request.form.get("url", "").strip(),
-            title=request.form.get("title", "").strip(),
-            description=request.form.get("description", "").strip(),
-            language=request.form.get("language", "pt"),
-            country=request.form.get("country", "BR"),
-            publish_method=request.form.get("publish_method", "webhook"),
-        )
+        site = Site(user_id=current_user.id, url=request.form.get("url", "").strip(), title=request.form.get("title", "").strip(), description=request.form.get("description", "").strip(), language=request.form.get("language", "pt"), country=request.form.get("country", "BR"), publish_method=request.form.get("publish_method", "webhook"))
         db.session.add(site)
         db.session.commit()
         flash("Site criado com sucesso.", "success")
@@ -62,24 +50,21 @@ def discover_site(site_id):
     from app.audit.discovery import discover_site as run_discovery
     try:
         data = run_discovery(site.url)
-        # Never overwrite information the customer has already supplied.
         if not site.title and data.get("title"):
             site.title = data["title"]
         if not site.description and data.get("description"):
             site.description = data["description"]
-        if not site.what_you_sell and data.get("business_terms"):
-            site.what_you_sell = "\n".join(data["business_terms"])
+        discovered_sell = data.get("what_you_sell") or data.get("business_terms") or []
+        if not site.what_you_sell and discovered_sell:
+            site.what_you_sell = "\n".join(discovered_sell)
+        if not site.what_you_dont_sell and data.get("what_you_dont_sell"):
+            site.what_you_dont_sell = "\n".join(data["what_you_dont_sell"])
+        if data.get("language"):
+            site.language = data["language"]
+        if data.get("country"):
+            site.country = data["country"]
         db.session.commit()
-        return jsonify({
-            "ok": True,
-            "data": {
-                "title": data.get("title", ""),
-                "description": data.get("description", ""),
-                "business_terms": data.get("business_terms", []),
-                "headings": data.get("headings", []),
-            },
-            "message": "Dados públicos detectados. Os campos vazios foram preenchidos; revise e complemente o restante.",
-        })
+        return jsonify({"ok": True, "data": {"title": data.get("title", ""), "description": data.get("description", ""), "what_you_sell": discovered_sell, "what_you_dont_sell": data.get("what_you_dont_sell", []), "business_terms": data.get("business_terms", []), "headings": data.get("headings", [])}, "message": "Dados públicos detectados. Os campos vazios foram preenchidos; revise e complemente o restante."})
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 400
