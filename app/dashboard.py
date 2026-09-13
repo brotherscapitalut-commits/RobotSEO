@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import Site, Article, SearchTerm, Competitor, SiteAudit, ContentRecommendation, AuditFinding
@@ -8,7 +8,7 @@ bp = Blueprint("dashboard", __name__)
 
 
 def require_subscription():
-    return current_user.has_active_subscription
+    return current_user.has_active_subscription or current_app.config.get("DEV_BYPASS_SUBSCRIPTION", False)
 
 
 @bp.route("/dashboard")
@@ -24,8 +24,8 @@ def home():
     calendar_articles = []
     latest_audit = None
     if active_site:
-        start = datetime.utcnow()
-        end = start + timedelta(days=35)
+        start = datetime.utcnow() - timedelta(days=1)
+        end = datetime.utcnow() + timedelta(days=35)
         calendar_articles = (
             Article.query.filter(
                 Article.site_id == active_site.id,
@@ -114,14 +114,15 @@ def add_search_terms(site_id):
 def generate_now(article_id):
     from app.ai.engine import generate_article_content, AIGenerationError
     article = Article.query.get_or_404(article_id)
-    site = Site.query.filter_by(id=article.site_id, user_id=current_user.id).first_or_404()
+    Site.query.filter_by(id=article.site_id, user_id=current_user.id).first_or_404()
     try:
-        result = generate_article_content(site, article.search_term, article_id=article.id)
+        result = generate_article_content(Site.query.get(article.site_id), article.search_term, article_id=article.id)
         article.title = result["title"]
         article.content_html = result["content_html"]
         article.ai_provider_used = result["provider"]
         article.hero_image_url = result.get("hero_image_url")
         article.status = "ready"
+        article.error_message = None
         db.session.commit()
         return jsonify({"ok": True, "provider": result["provider"]})
     except AIGenerationError as e:
@@ -165,6 +166,7 @@ def publish_now(article_id):
         article.status = "published"
         article.published_at = datetime.utcnow()
         article.published_url = url
+        article.error_message = None
         db.session.commit()
         return jsonify({"ok": True, "url": url})
     except Exception as e:
