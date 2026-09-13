@@ -40,15 +40,10 @@ def _run_audit(app, audit_id: str):
             all_findings = []
             geo_scores, aeo_scores = [], []
             business_context = f"{site.title or site.url} — {site.description or 'sem descrição cadastrada'}. Vende: {site.what_you_sell or 'não informado'}."
-            ai_enabled = bool(
-                app.config.get("ANTHROPIC_API_KEY")
-                or app.config.get("GOOGLE_API_KEY")
-                or app.config.get("ENABLE_OLLAMA")
-            )
+            ai_enabled = bool(app.config.get("ANTHROPIC_API_KEY") or app.config.get("GOOGLE_API_KEY") or app.config.get("ENABLE_OLLAMA"))
 
             for i, (url, html) in enumerate(pages.items()):
-                page_findings = check_page_seo(url, html)
-                all_findings.extend(page_findings)
+                all_findings.extend(check_page_seo(url, html))
                 if i < MAX_PAGES_FOR_AI_ANALYSIS:
                     page_text = extract_page_text(html)
                     if len(page_text) > 200:
@@ -61,38 +56,19 @@ def _run_audit(app, audit_id: str):
                         all_findings.extend([{**f, "url": url, "category": "aeo"} for f in ai_result.get("aeo_findings", [])])
 
             if not ai_enabled:
-                all_findings.append({
-                    "url": site.url,
-                    "category": "ai",
-                    "severity": "warning",
-                    "title": "Análise GEO/AEO por IA não executada",
-                    "description": "O crawl e os testes técnicos foram executados, mas nenhum provedor de IA está configurado neste ambiente. Por isso GEO/AEO aparecem sem nota e não foram geradas oportunidades de conteúdo por IA.",
-                    "how_to_fix": "Configure ANTHROPIC_API_KEY, GOOGLE_API_KEY ou habilite ENABLE_OLLAMA para ativar a camada de raciocínio e geração autônoma.",
-                })
+                all_findings.append({"url": site.url, "category": "ai", "severity": "warning", "title": "Análise GEO/AEO por IA não executada", "description": "O crawl e os testes técnicos foram executados, mas nenhum provedor de IA está configurado neste ambiente. Por isso GEO/AEO aparecem sem nota e não foram geradas oportunidades de conteúdo por IA.", "how_to_fix": "Configure ANTHROPIC_API_KEY, GOOGLE_API_KEY ou habilite ENABLE_OLLAMA para ativar o raciocínio e a geração autônoma."})
             elif not geo_scores and not aeo_scores:
-                all_findings.append({
-                    "url": site.url,
-                    "category": "ai",
-                    "severity": "warning",
-                    "title": "Provedor de IA não retornou análise",
-                    "description": "Um provedor está configurado, mas nenhuma página elegível retornou notas GEO/AEO nesta execução.",
-                    "how_to_fix": "Verifique a chave, o modelo configurado e os logs de geração para identificar falhas do provedor.",
-                })
+                all_findings.append({"url": site.url, "category": "ai", "severity": "warning", "title": "Provedor de IA não retornou análise", "description": "Um provedor está configurado, mas nenhuma página elegível retornou notas GEO/AEO nesta execução.", "how_to_fix": "Verifique a chave, o modelo configurado e os logs de geração para identificar falhas do provedor."})
 
             for f in all_findings:
-                db.session.add(AuditFinding(
-                    audit_id=audit.id,
-                    url=f.get("url"),
-                    category=f.get("category"),
-                    severity=f.get("severity", "info"),
-                    title=f.get("title", ""),
-                    description=f.get("description", ""),
-                    how_to_fix=f.get("how_to_fix", ""),
-                ))
+                db.session.add(AuditFinding(audit_id=audit.id, url=f.get("url"), category=f.get("category"), severity=f.get("severity", "info"), title=f.get("title", ""), description=f.get("description", ""), how_to_fix=f.get("how_to_fix", "")))
 
-            seo_critical = sum(1 for f in all_findings if f.get("category") == "seo" and f.get("severity") == "critical")
-            seo_warnings = sum(1 for f in all_findings if f.get("category") == "seo" and f.get("severity") == "warning")
-            seo_score = max(0, 100 - (seo_critical * 15) - (seo_warnings * 5))
+            total_pages = len(pages)
+            seo_critical_pages = len({f.get("url") for f in all_findings if f.get("category") == "seo" and f.get("severity") == "critical"})
+            seo_warning_pages = len({f.get("url") for f in all_findings if f.get("category") == "seo" and f.get("severity") == "warning"})
+            critical_rate = seo_critical_pages / total_pages
+            warning_rate = seo_warning_pages / total_pages
+            seo_score = max(0, round(100 - (critical_rate * 45) - (warning_rate * 25)))
             geo_score = int(sum(geo_scores) / len(geo_scores)) if geo_scores else None
             aeo_score = int(sum(aeo_scores) / len(aeo_scores)) if aeo_scores else None
             component_scores = [s for s in [seo_score, geo_score, aeo_score] if s is not None]
@@ -103,14 +79,7 @@ def _run_audit(app, audit_id: str):
             executable_jobs = 0
             for r in recs:
                 priority = r.get("priority", "medium")
-                rec = ContentRecommendation(
-                    audit_id=audit.id,
-                    site_id=site.id,
-                    title_suggestion=r.get("title_suggestion", ""),
-                    search_term=r.get("search_term", ""),
-                    rationale=r.get("rationale", ""),
-                    priority=priority,
-                )
+                rec = ContentRecommendation(audit_id=audit.id, site_id=site.id, title_suggestion=r.get("title_suggestion", ""), search_term=r.get("search_term", ""), rationale=r.get("rationale", ""), priority=priority)
                 db.session.add(rec)
                 db.session.flush()
                 if priority in AUTO_EXECUTE_PRIORITIES and r.get("search_term"):
@@ -121,7 +90,7 @@ def _run_audit(app, audit_id: str):
                     rec.created_article_id = article.id
                     executable_jobs += 1
 
-            audit.pages_analyzed = len(pages)
+            audit.pages_analyzed = total_pages
             audit.seo_score = seo_score
             audit.geo_score = geo_score
             audit.aeo_score = aeo_score
@@ -132,11 +101,7 @@ def _run_audit(app, audit_id: str):
             pass_count = sum(1 for f in all_findings if f.get("severity") == "pass")
             info_count = sum(1 for f in all_findings if f.get("severity") == "info")
             ai_note = "IA habilitada" if ai_enabled else "IA não configurada"
-            audit.summary = (
-                f"{len(pages)} páginas analisadas. {issue_count} alertas acionáveis, "
-                f"{pass_count} verificações aprovadas e {info_count} observações. "
-                f"{len(recs)} oportunidades de conteúdo geradas; {executable_jobs} jobs executáveis. {ai_note}."
-            )
+            audit.summary = f"{total_pages} páginas analisadas. {issue_count} alertas acionáveis, {pass_count} verificações aprovadas e {info_count} observações. {len(recs)} oportunidades de conteúdo geradas; {executable_jobs} jobs executáveis. {ai_note}."
             db.session.commit()
 
             if executable_jobs:
