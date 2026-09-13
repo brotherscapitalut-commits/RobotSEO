@@ -63,25 +63,15 @@ def process_due_articles(app):
 
 
 def _run_autonomous_audits_job(app):
-    """Inicia no máximo uma auditoria por site a cada 24h.
-
-    A auditoria é assíncrona; o job só cria o ciclo quando não existe uma
-    auditoria recente ou uma auditoria ainda em execução.
-    """
+    """Inicia no máximo uma auditoria por site a cada 24h."""
     from app.extensions import db
     from app.models import Site, SiteAudit
     from app.audit.orchestrator import run_audit_async
 
     with app.app_context():
         cutoff = datetime.utcnow() - timedelta(hours=23)
-        sites = Site.query.join(Site.owner).filter(
-            Site.owner.has_active_subscription.is_(True)
-        ).all()
-
-        # SQLAlchemy não expõe propriedades Python em filtros. Reaplicamos a
-        # regra de assinatura aqui de forma explícita para manter compatibilidade.
-        for site in sites:
-            if not site.owner.has_active_subscription:
+        for site in Site.query.all():
+            if not site.owner or not site.owner.has_active_subscription:
                 continue
 
             recent = SiteAudit.query.filter(
@@ -120,7 +110,7 @@ def _sync_gsc_job(app):
         ).all()
         for conn in connections:
             site = Site.query.get(conn.site_id)
-            if not site or not site.owner.has_active_subscription:
+            if not site or not site.owner or not site.owner.has_active_subscription:
                 continue
             try:
                 sync_search_metrics(site, conn)
