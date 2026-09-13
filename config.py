@@ -4,6 +4,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _database_url():
+    url = os.environ.get("DATABASE_URL", "sqlite:///dev.db")
+    if url.startswith("postgres://"):
+        url = "postgresql+psycopg://" + url[len("postgres://"):]
+    elif url.startswith("postgresql://") and "+psycopg" not in url.split("://", 1)[0]:
+        url = "postgresql+psycopg://" + url[len("postgresql://"):]
+    return url
+
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-key-troque-em-producao")
     BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
@@ -17,9 +26,7 @@ class Config:
         if email.strip()
     }
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", "sqlite:///dev.db"
-    )
+    SQLALCHEMY_DATABASE_URI = _database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # IA
@@ -38,7 +45,7 @@ class Config:
     GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID")
     GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET")
 
-    # E-mail (SMTP genérico — funciona com Gmail, SendGrid, Postmark, Resend, etc)
+    # E-mail
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
     MAIL_USE_TLS = True
