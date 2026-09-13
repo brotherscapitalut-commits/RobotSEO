@@ -53,10 +53,36 @@ def view(site_id, audit_id):
     site = _get_site_or_404(site_id)
     audit = SiteAudit.query.filter_by(id=audit_id, site_id=site.id).first_or_404()
     findings = AuditFinding.query.filter_by(audit_id=audit.id).order_by(
-        AuditFinding.severity.asc()
+        db.case(
+            (AuditFinding.severity == "critical", 0),
+            (AuditFinding.severity == "warning", 1),
+            (AuditFinding.severity == "info", 2),
+            (AuditFinding.severity == "pass", 3),
+            else_=4,
+        ), AuditFinding.category.asc(), AuditFinding.created_at.asc()
     ).all()
     recommendations = ContentRecommendation.query.filter_by(audit_id=audit.id, status="suggested").all()
-    return render_template("audit/view.html", site=site, audit=audit, findings=findings, recommendations=recommendations)
+    counts = {
+        "critical": sum(1 for f in findings if f.severity == "critical"),
+        "warning": sum(1 for f in findings if f.severity == "warning"),
+        "info": sum(1 for f in findings if f.severity == "info"),
+        "pass": sum(1 for f in findings if f.severity == "pass"),
+    }
+    categories = {}
+    for f in findings:
+        categories.setdefault(f.category or "outros", {"total": 0, "critical": 0, "warning": 0, "info": 0, "pass": 0})
+        categories[f.category or "outros"]["total"] += 1
+        if f.severity in categories[f.category or "outros"]:
+            categories[f.category or "outros"][f.severity] += 1
+    return render_template(
+        "audit/view.html",
+        site=site,
+        audit=audit,
+        findings=findings,
+        recommendations=recommendations,
+        counts=counts,
+        categories=categories,
+    )
 
 
 @bp.route("/<site_id>/<audit_id>/status")
