@@ -1,15 +1,66 @@
 {% extends "base.html" %}
 {% block title %}Audit Intelligence — AutoSEO AI{% endblock %}
 {% block body %}
-<div class="max-w-6xl mx-auto py-8 px-4 lg:px-6">
+<div class="max-w-7xl mx-auto py-8 px-4 lg:px-6">
 <a href="{{ url_for('audit.home', site_id=site.id) }}" class="text-xs text-slate-500 hover:text-white">← Histórico de auditorias</a>
-{% if audit.status == 'running' %}<div class="rounded-2xl border border-white/10 bg-white/[.025] p-12 text-center mt-5"><div class="text-[#00FF66] text-4xl animate-pulse">◈</div><h1 class="text-xl font-bold text-white mt-4">Agente observando o site…</h1><p class="text-slate-400 text-sm mt-2">Crawl, diagnóstico técnico e análise SEO/GEO/AEO em execução.</p></div><script>setInterval(async()=>{const r=await fetch("{{ url_for('audit.status',site_id=site.id,audit_id=audit.id) }}");const d=await r.json();if(d.status!=='running')location.reload()},5000)</script>
-{% elif audit.status == 'failed' %}<div class="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-8 mt-5"><h1 class="text-xl font-bold text-rose-300">Ciclo interrompido</h1><p class="text-slate-400 text-sm mt-2">{{ audit.error_message }}</p></div>
+{% if audit.status == 'running' %}
+<div class="rounded-2xl border border-white/10 bg-white/[.025] p-12 text-center mt-5"><div class="text-[#00FF66] text-4xl animate-pulse">◈</div><h1 class="text-xl font-bold text-white mt-4">Agente observando o site…</h1><p class="text-slate-400 text-sm mt-2">Crawl, diagnóstico técnico e análise SEO/GEO/AEO em execução.</p></div>
+<script>setInterval(async()=>{const r=await fetch("{{ url_for('audit.status',site_id=site.id,audit_id=audit.id) }}");const d=await r.json();if(d.status!=='running')location.reload()},5000)</script>
+{% elif audit.status == 'failed' %}
+<div class="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-8 mt-5"><div class="text-[10px] uppercase tracking-[.2em] text-rose-300">Audit Intelligence</div><h1 class="text-xl font-bold text-rose-300 mt-2">Ciclo interrompido</h1><p class="text-slate-400 text-sm mt-2">{{ audit.error_message }}</p></div>
 {% else %}
-<div class="mt-5 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4"><div><div class="text-[10px] uppercase tracking-[.2em] text-[#00FF66]">Audit Intelligence</div><h1 class="text-3xl font-bold text-white mt-2">Decisões para {{ site.title or site.url }}</h1><p class="text-slate-400 text-sm mt-2">{{ audit.summary }}</p></div><div class="text-xs text-slate-600">{{ audit.pages_analyzed }} páginas · {{ audit.created_at.strftime('%d/%m/%Y %H:%M') }}</div></div>
-<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">{% for label,value in [('Visibilidade',audit.overall_score),('SEO',audit.seo_score),('GEO / IA',audit.geo_score),('AEO',audit.aeo_score)] %}<div class="rounded-2xl border border-white/10 bg-white/[.025] p-5"><span class="text-xs text-slate-500">{{ label }}</span><div class="text-3xl font-bold text-white mt-2">{{ value if value is not none else '—' }}</div><div class="mt-3 h-1 bg-white/5 rounded"><div class="h-full bg-[#00FF66] rounded" style="width:{{ value or 0 }}%"></div></div></div>{% endfor %}</div>
-{% if recommendations %}<section class="rounded-2xl border border-[#00FF66]/15 bg-[#00FF66]/[.02] p-6 mt-6"><div class="flex items-center justify-between"><div><h2 class="font-bold text-white">Oportunidades executáveis</h2><p class="text-xs text-slate-500 mt-1">O agente encontrou {{ recommendations|length }} recomendações ainda aguardando decisão.</p></div><span class="text-[10px] uppercase tracking-wider text-[#00FF66]">Prioridade</span></div><div class="space-y-3 mt-5">{% for r in recommendations %}<div class="bg-black/20 border border-white/10 rounded-xl p-4" id="rec-{{ r.id }}"><div class="flex flex-col md:flex-row md:items-center gap-4"><div class="flex-1"><div class="text-sm font-semibold text-white">{{ r.title_suggestion }}</div><div class="text-xs text-slate-500 mt-1">{{ r.search_term }} · {{ r.priority }}</div><p class="text-xs text-slate-400 mt-2">{{ r.rationale }}</p></div><div class="flex gap-2"><button onclick="scheduleRec('{{ r.id }}')" class="px-3 py-2 rounded-lg bg-[#00FF66] text-black text-xs font-bold">Colocar na execução</button><button onclick="dismissRec('{{ r.id }}')" class="px-3 py-2 rounded-lg border border-white/10 text-slate-500 text-xs">Ignorar</button></div></div></div>{% endfor %}</div></section>{% endif %}
-<section class="rounded-2xl border border-white/10 bg-white/[.025] p-6 mt-6"><div class="flex items-center justify-between mb-5"><h2 class="font-bold text-white">Diagnóstico</h2><span class="text-xs text-slate-600">{{ findings|length }} achados</span></div><div class="space-y-4">{% for f in findings %}<article class="border-l-2 pl-4 {{ 'border-rose-500' if f.severity=='critical' else 'border-amber-500' if f.severity=='warning' else 'border-white/20' }}"><div class="flex flex-wrap items-center gap-2"><span class="text-[9px] uppercase font-bold text-slate-400">{{ f.category }}</span><span class="text-[9px] uppercase font-bold {{ 'text-rose-300' if f.severity=='critical' else 'text-amber-300' if f.severity=='warning' else 'text-slate-500' }}">{{ f.severity }}</span><strong class="text-sm text-white">{{ f.title }}</strong></div><p class="text-xs text-slate-400 mt-1">{{ f.description }}</p><p class="text-xs text-[#00FF66]/80 mt-1">Ação: {{ f.how_to_fix }}</p><p class="text-[10px] text-slate-600 mt-1 truncate">{{ f.url }}</p></article>{% else %}<p class="text-sm text-slate-500">Nenhum achado registrado.</p>{% endfor %}</div></section>
+<div class="mt-5 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+  <div><div class="text-[10px] uppercase tracking-[.2em] text-[#00FF66]">Audit Intelligence</div><h1 class="text-3xl font-bold text-white mt-2">Decisões para {{ site.title or site.url }}</h1><p class="text-slate-400 text-sm mt-2 max-w-4xl">{{ audit.summary }}</p></div>
+  <div class="text-xs text-slate-600 whitespace-nowrap">{{ audit.pages_analyzed }} páginas · {{ audit.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+</div>
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+{% for label,value in [('Visibilidade',audit.overall_score),('SEO técnico',audit.seo_score),('GEO / IA',audit.geo_score),('AEO',audit.aeo_score)] %}
+<div class="rounded-2xl border border-white/10 bg-white/[.025] p-5"><span class="text-xs text-slate-500">{{ label }}</span><div class="text-3xl font-bold text-white mt-2">{{ value if value is not none else '—' }}</div><div class="mt-3 h-1 bg-white/5 rounded"><div class="h-full bg-[#00FF66] rounded" style="width:{{ value or 0 }}%"></div></div></div>
+{% endfor %}
+</div>
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+{% for key,label,cls in [('critical','Críticos','text-rose-300'),('warning','Alertas','text-amber-300'),('info','Observações','text-slate-300'),('pass','Verificações OK','text-[#00FF66]')] %}
+<div class="rounded-xl border border-white/10 bg-black/20 px-4 py-3"><div class="text-[10px] uppercase tracking-wider text-slate-600">{{ label }}</div><div class="text-xl font-bold {{ cls }} mt-1">{{ counts[key] }}</div></div>
+{% endfor %}
+</div>
+
+<section class="rounded-2xl border border-white/10 bg-white/[.025] p-6 mt-6">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
+    <div><h2 class="font-bold text-white">Cobertura da auditoria</h2><p class="text-xs text-slate-500 mt-1">O agente mostra tanto problemas quanto verificações aprovadas — não apenas erros.</p></div>
+    <div class="flex flex-wrap gap-2">{% for category,data in categories.items() %}<span class="text-[10px] px-2 py-1 rounded-full border border-white/10 text-slate-400">{{ category|upper }} · {{ data.total }}</span>{% endfor %}</div>
+  </div>
+  <div class="grid md:grid-cols-4 gap-3">
+    <div class="rounded-xl bg-black/20 border border-white/5 p-4"><div class="text-[10px] text-slate-600">PÁGINAS</div><div class="text-2xl font-bold text-white mt-1">{{ audit.pages_analyzed }}</div><p class="text-[11px] text-slate-500 mt-1">HTML acessível analisado</p></div>
+    <div class="rounded-xl bg-black/20 border border-white/5 p-4"><div class="text-[10px] text-slate-600">TÉCNICO</div><div class="text-2xl font-bold text-white mt-1">{{ categories.get('seo', {}).get('pass', 0) }}</div><p class="text-[11px] text-slate-500 mt-1">checks SEO aprovados</p></div>
+    <div class="rounded-xl bg-black/20 border border-white/5 p-4"><div class="text-[10px] text-slate-600">CONTEÚDO</div><div class="text-2xl font-bold text-white mt-1">{{ categories.get('content', {}).get('total', 0) }}</div><p class="text-[11px] text-slate-500 mt-1">sinais de profundidade e links</p></div>
+    <div class="rounded-xl bg-black/20 border border-white/5 p-4"><div class="text-[10px] text-slate-600">ESTRUTURA / AEO</div><div class="text-2xl font-bold text-white mt-1">{{ categories.get('aeo', {}).get('total', 0) }}</div><p class="text-[11px] text-slate-500 mt-1">checks estruturados e respostas</p></div>
+  </div>
+</section>
+
+{% if recommendations %}
+<section class="rounded-2xl border border-[#00FF66]/15 bg-[#00FF66]/[.02] p-6 mt-6"><div class="flex items-center justify-between"><div><h2 class="font-bold text-white">Oportunidades de conteúdo</h2><p class="text-xs text-slate-500 mt-1">{{ recommendations|length }} recomendações geradas pelo agente.</p></div><span class="text-[10px] uppercase tracking-wider text-[#00FF66]">Execução</span></div><div class="space-y-3 mt-5">{% for r in recommendations %}<div class="bg-black/20 border border-white/10 rounded-xl p-4" id="rec-{{ r.id }}"><div class="flex flex-col md:flex-row md:items-center gap-4"><div class="flex-1"><div class="text-sm font-semibold text-white">{{ r.title_suggestion }}</div><div class="text-xs text-slate-500 mt-1">{{ r.search_term }} · {{ r.priority }}</div><p class="text-xs text-slate-400 mt-2">{{ r.rationale }}</p></div><div class="flex gap-2"><button onclick="scheduleRec('{{ r.id }}')" class="px-3 py-2 rounded-lg bg-[#00FF66] text-black text-xs font-bold">Colocar na execução</button><button onclick="dismissRec('{{ r.id }}')" class="px-3 py-2 rounded-lg border border-white/10 text-slate-500 text-xs">Ignorar</button></div></div></div>{% endfor %}</div></section>
+{% elif counts.warning > 0 or counts.info > 0 %}
+<section class="rounded-2xl border border-white/10 bg-white/[.025] p-6 mt-6"><h2 class="font-bold text-white">Próxima decisão</h2><p class="text-sm text-slate-400 mt-2">O diagnóstico encontrou sinais técnicos/conteúdo para trabalhar, mas não gerou artigos automaticamente nesta execução. Se GEO/AEO estiver “—”, configure um provedor de IA para habilitar o raciocínio de conteúdo e a criação de jobs.</p></section>
+{% endif %}
+
+<section class="rounded-2xl border border-white/10 bg-white/[.025] p-6 mt-6">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5"><div><h2 class="font-bold text-white">Diagnóstico detalhado</h2><p class="text-xs text-slate-500 mt-1">Cada linha representa uma verificação feita em uma página do site.</p></div><span class="text-xs text-slate-600">{{ findings|length }} registros</span></div>
+  <div class="space-y-3">
+  {% for f in findings %}
+  <article class="rounded-xl border border-white/5 bg-black/20 p-4 {{ 'border-l-2 !border-l-rose-500' if f.severity=='critical' else 'border-l-2 !border-l-amber-500' if f.severity=='warning' else 'border-l-2 !border-l-[#00FF66]' if f.severity=='pass' else '' }}">
+    <div class="flex flex-wrap items-center gap-2"><span class="text-[9px] uppercase font-bold text-slate-500">{{ f.category }}</span><span class="text-[9px] uppercase font-bold {{ 'text-rose-300' if f.severity=='critical' else 'text-amber-300' if f.severity=='warning' else 'text-[#00FF66]' if f.severity=='pass' else 'text-slate-400' }}">{{ 'OK' if f.severity=='pass' else f.severity }}</span><strong class="text-sm text-white">{{ f.title }}</strong></div>
+    <p class="text-xs text-slate-400 mt-1">{{ f.description }}</p>
+    {% if f.how_to_fix %}<p class="text-xs text-[#00FF66]/80 mt-2"><span class="text-slate-600">Ação:</span> {{ f.how_to_fix }}</p>{% endif %}
+    <p class="text-[10px] text-slate-600 mt-2 truncate">{{ f.url }}</p>
+  </article>
+  {% else %}<p class="text-sm text-slate-500">Nenhum registro foi produzido. Isso indica uma falha de coleta e não deve ser interpretado como “SEO perfeito”.</p>{% endfor %}
+  </div>
+</section>
 {% endif %}</div>
-<script>async function scheduleRec(id){const r=await fetch(`/audit/recommendations/${id}/schedule`,{method:'POST'});const d=await r.json();if(d.ok)document.getElementById('rec-'+id).remove();else alert(d.error||'Falha')}async function dismissRec(id){const r=await fetch(`/audit/recommendations/${id}/dismiss`,{method:'POST'});if(r.ok)document.getElementById('rec-'+id).remove()}</script>
+<script>
+async function scheduleRec(id){const r=await fetch(`/audit/recommendations/${id}/schedule`,{method:'POST'});const d=await r.json();if(d.ok)document.getElementById('rec-'+id).remove();else alert(d.error||'Falha')}
+async function dismissRec(id){const r=await fetch(`/audit/recommendations/${id}/dismiss`,{method:'POST'});if(r.ok)document.getElementById('rec-'+id).remove()}
+</script>
 {% endblock %}
