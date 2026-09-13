@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Flask, redirect, url_for, render_template
+from flask import Flask, redirect, url_for, render_template, Response
 from flask_login import current_user
 from config import Config
 from app.extensions import db, login_manager, bcrypt, migrate, scheduler, csrf, mail, limiter
@@ -55,6 +55,18 @@ def create_app(config_class=Config):
             ]
         }
         return render_template("landing.html", faqs=faqs, schema=schema, now=datetime.utcnow())
+
+    @app.route("/robots.txt")
+    def robots():
+        body = "User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /admin\nDisallow: /billing\nDisallow: /audit\nSitemap: " + url_for("sitemap", _external=True) + "\n"
+        return Response(body, mimetype="text/plain")
+
+    @app.route("/sitemap.xml")
+    def sitemap():
+        base = request_base = url_for("index", _external=True).rstrip("/")
+        urls = [base + "/", base + "/#como-funciona", base + "/#recursos", base + "/#precos", base + "/#faq"]
+        xml = '<?xml version="1.0" encoding="UTF-8"?>' + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + ''.join(f'<url><loc>{u}</loc></url>' for u in urls) + '</urlset>'
+        return Response(xml, mimetype="application/xml")
 
     with app.app_context():
         db.create_all()
