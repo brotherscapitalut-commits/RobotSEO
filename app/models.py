@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from flask_login import UserMixin
+from flask import current_app
 from app.extensions import db, bcrypt
 
 
@@ -40,6 +41,16 @@ class User(UserMixin, db.Model):
     @property
     def has_active_subscription(self):
         return self.subscription_status in ("active", "trialing")
+
+    @property
+    def has_full_access(self):
+        """Full product access, including an explicit local test allowlist."""
+        if self.has_active_subscription or self.is_admin:
+            return True
+        if not current_app.config.get("DEV_BYPASS_SUBSCRIPTION", False):
+            return False
+        allowed_emails = current_app.config.get("DEV_BYPASS_EMAILS", set())
+        return (self.email or "").strip().lower() in allowed_emails
 
 
 class Site(db.Model):
