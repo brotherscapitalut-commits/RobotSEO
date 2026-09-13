@@ -6,6 +6,7 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-key-troque-em-producao")
     BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
+    DEV_BYPASS_SUBSCRIPTION = os.environ.get("DEV_BYPASS_SUBSCRIPTION", "false").lower() == "true"
 
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL", "sqlite:///dev.db"
@@ -40,6 +41,6 @@ class Config:
     ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@example.com")
     ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme123")
 
-    # Agendador: publica artigos todo dia entre 9h-11h (igual ao AutoSEO)
+    # Agendador
     PUBLISH_WINDOW_START_HOUR = 9
     PUBLISH_WINDOW_END_HOUR = 11
