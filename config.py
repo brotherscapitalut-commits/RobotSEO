@@ -3,10 +3,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-key-troque-em-producao")
     BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
+
+    # LOCAL TEST ONLY: bypass the Stripe subscription gate for an explicit allowlist.
+    # Keep disabled in production.
     DEV_BYPASS_SUBSCRIPTION = os.environ.get("DEV_BYPASS_SUBSCRIPTION", "false").lower() == "true"
+    DEV_BYPASS_EMAILS = {
+        email.strip().lower()
+        for email in os.environ.get("DEV_BYPASS_EMAILS", "").split(",")
+        if email.strip()
+    }
 
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL", "sqlite:///dev.db"
