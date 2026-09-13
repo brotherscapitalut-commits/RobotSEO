@@ -43,14 +43,25 @@ def _try_ollama(prompt: str, system: str) -> str:
     return data["response"].strip()
 
 
-PROVIDERS = [("claude", _try_claude), ("gemini", _try_gemini), ("ollama", _try_ollama)]
+def _providers():
+    providers = []
+    if current_app.config.get("ANTHROPIC_API_KEY"):
+        providers.append(("claude", _try_claude))
+    if current_app.config.get("GOOGLE_API_KEY"):
+        providers.append(("gemini", _try_gemini))
+    if current_app.config.get("ENABLE_OLLAMA", False):
+        providers.append(("ollama", _try_ollama))
+    return providers
 
 
 def generate_with_fallback(prompt: str, system: str = "", article_id: str = None):
     from app.models import GenerationLog
     from app.extensions import db
+    providers = _providers()
+    if not providers:
+        raise AIGenerationError("Nenhum provedor de IA está configurado. Configure ANTHROPIC_API_KEY, GOOGLE_API_KEY ou ENABLE_OLLAMA=true.")
     logs = []
-    for name, fn in PROVIDERS:
+    for name, fn in providers:
         start = time.time()
         try:
             text = fn(prompt, system)
