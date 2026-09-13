@@ -1,4 +1,6 @@
-from flask import Flask
+from datetime import datetime
+from flask import Flask, redirect, url_for, render_template, Response
+from flask_login import current_user
 from config import Config
 from app.extensions import db, login_manager, bcrypt, migrate, scheduler, csrf, mail, limiter
 
@@ -35,14 +37,35 @@ def create_app(config_class=Config):
     app.register_blueprint(analytics_bp)
     app.register_blueprint(audit_bp)
 
-    from flask import redirect, url_for
-    from flask_login import current_user
-
     @app.route("/")
     def index():
         if current_user.is_authenticated:
             return redirect(url_for("admin.dashboard" if current_user.is_admin else "dashboard.home"))
-        return redirect(url_for("auth.login"))
+        faqs = [
+            ("O que o AutoSEO AI faz?", "Ele rastreia seu site, identifica problemas e oportunidades de SEO, GEO e AEO, prioriza ações e transforma recomendações em conteúdo e tarefas executáveis."),
+            ("Ele realmente executa as mudanças?", "O núcleo atual já gera conteúdo, agenda publicações e publica por WordPress ou Webhook. A arquitetura permite ampliar a execução com conectores adicionais."),
+            ("Qual a diferença entre SEO, GEO e AEO?", "SEO melhora descoberta em buscadores; GEO melhora a capacidade de uma marca ser encontrada e citada por sistemas generativos; AEO estrutura respostas para mecanismos de resposta e snippets."),
+            ("Preciso configurar as chaves de IA agora?", "Não. A aplicação aceita as credenciais por variáveis de ambiente e usa a cascata de provedores configurada no backend."),
+            ("Como funciona a assinatura?", "A cobrança é preparada com Stripe Checkout e webhook. Você adiciona as credenciais e o Price ID no ambiente de produção."),
+        ]
+        schema = {
+            "@context": "https://schema.org", "@graph": [
+                {"@type": "SoftwareApplication", "name": "AutoSEO AI", "applicationCategory": "BusinessApplication", "operatingSystem": "Web", "description": "Plataforma autônoma de SEO, GEO e AEO para analisar, decidir e executar otimizações.", "offers": {"@type": "Offer", "price": "100", "priceCurrency": "USD", "priceSpecification": {"@type": "UnitPriceSpecification", "billingDuration": "P1M"}}},
+                {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in faqs]}
+            ]
+        }
+        return render_template("landing.html", faqs=faqs, schema=schema, now=datetime.utcnow())
+
+    @app.route("/robots.txt")
+    def robots():
+        body = "User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /admin\nDisallow: /billing\nDisallow: /audit\nSitemap: " + url_for("sitemap", _external=True) + "\n"
+        return Response(body, mimetype="text/plain")
+
+    @app.route("/sitemap.xml")
+    def sitemap():
+        canonical = url_for("index", _external=True)
+        xml = '<?xml version="1.0" encoding="UTF-8"?>' + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>' + canonical + '</loc></url></urlset>'
+        return Response(xml, mimetype="application/xml")
 
     with app.app_context():
         db.create_all()
@@ -55,7 +78,7 @@ def create_app(config_class=Config):
 
 
 def _seed_admin(app):
-    from app.models import User, Site
+    from app.models import User
 
     email = app.config["ADMIN_EMAIL"]
     if not User.query.filter_by(email=email).first():
@@ -65,28 +88,3 @@ def _seed_admin(app):
         db.session.add(admin)
         db.session.commit()
         print(f"[seed] Admin criado: {email}")
-
-    # Usuário de teste solicitado, com assinatura ativa e site de exemplo pré-configurado
-    test_email = "pedrofilho1@gmail.com"
-    test_password = "senha12345"
-    test_user = User.query.filter_by(email=test_email).first()
-    if not test_user:
-        test_user = User(email=test_email, name="Pedro Filho", role="customer",
-                          subscription_status="active", email_verified=True)
-        test_user.set_password(test_password)
-        db.session.add(test_user)
-        db.session.commit()
-
-        demo_site = Site(
-            user_id=test_user.id,
-            url="https://exemplo-demo.com",
-            title="Site de Demonstração",
-            description="Empresa fictícia de transporte executivo usada para testar o sistema.",
-            language="pt", country="BR",
-            publish_method="webhook",
-            what_you_sell="Fretamento executivo\nTransporte para eventos corporativos",
-            what_you_dont_sell="Transporte público urbano\nAluguel de veículos sem motorista",
-        )
-        db.session.add(demo_site)
-        db.session.commit()
-        print(f"[seed] Usuário de teste criado: {test_email} / senha: {test_password}")

@@ -1,11 +1,13 @@
 """
-Job que roda em background (APScheduler) a cada X minutos:
-1. Busca artigos com status 'scheduled' cujo horário chegou.
-2. Gera o conteúdo via engine de IA (cascata Claude->Gemini->Ollama).
-3. Se auto_publish estiver ligado no site, publica automaticamente.
-4. Marca falhas com detalhes em error_message (nunca falha silenciosamente).
+Jobs autônomos do AutoSEO AI.
+
+- A cada 5 min: executa artigos vencidos.
+- A cada 24h: monitora tendências.
+- A cada 24h: sincroniza Search Console conectado.
+- A cada 24h: roda uma nova auditoria nos sites com assinatura ativa,
+  transformando oportunidades de alta prioridade em jobs executáveis.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def process_due_articles(app):
@@ -55,9 +57,38 @@ def process_due_articles(app):
                 article.error_message = str(e)
                 db.session.commit()
             except Exception as e:
-                article.status = "ready"  # conteúdo gerado, publicação falhou
+                article.status = "ready"
                 article.error_message = f"Falha ao publicar: {e}"
                 db.session.commit()
+
+
+def _run_autonomous_audits_job(app):
+    """Inicia no máximo uma auditoria por site a cada 24h."""
+    from app.extensions import db
+    from app.models import Site, SiteAudit
+    from app.audit.orchestrator import run_audit_async
+
+    with app.app_context():
+        cutoff = datetime.utcnow() - timedelta(hours=23)
+        for site in Site.query.all():
+            if not site.owner or not site.owner.has_active_subscription:
+                continue
+
+            recent = SiteAudit.query.filter(
+                SiteAudit.site_id == site.id,
+                SiteAudit.created_at >= cutoff,
+            ).order_by(SiteAudit.created_at.desc()).first()
+            if recent and recent.status in ("running", "done"):
+                continue
+
+            audit = SiteAudit(
+                site_id=site.id,
+                scope="crawl",
+                status="running",
+            )
+            db.session.add(audit)
+            db.session.commit()
+            run_audit_async(app, audit.id)
 
 
 def _check_trends_job(app):
@@ -79,7 +110,7 @@ def _sync_gsc_job(app):
         ).all()
         for conn in connections:
             site = Site.query.get(conn.site_id)
-            if not site:
+            if not site or not site.owner or not site.owner.has_active_subscription:
                 continue
             try:
                 sync_search_metrics(site, conn)
@@ -107,6 +138,13 @@ def start_scheduler(app, scheduler):
         trigger="interval",
         hours=24,
         id="sync_gsc_metrics",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        func=lambda: _run_autonomous_audits_job(app),
+        trigger="interval",
+        hours=24,
+        id="autonomous_site_audits",
         replace_existing=True,
     )
     if not scheduler.running:
